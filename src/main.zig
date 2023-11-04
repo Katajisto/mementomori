@@ -1,82 +1,9 @@
 const r = @import("ray.zig").r;
+const i = @import("image.zig");
 const utils = @import("utils.zig");
+const exporter = @import("export.zig");
 const std = @import("std");
 const fs = std.fs;
-
-const SIDEBAR_SIZE = 400;
-
-pub fn tof(x: i32) f32 {
-    return @as(f32, @floatFromInt(x));
-}
-
-pub fn toi(x: f32) i32 {
-    return @as(i32, @intFromFloat(x));
-}
-
-pub fn drawTexLetterboxed(tex: r.Texture2D, swidth: i32, sheight: i32) void {
-    var trueWidth: f32 = tof(swidth) - SIDEBAR_SIZE;
-
-    var imageAspect = tof(tex.width) / tof(tex.height);
-    var screenAspect = trueWidth / tof(sheight);
-
-    var renderWidth: f32 = 0;
-    var renderHeight: f32 = 0;
-
-    if (imageAspect > screenAspect) {
-        renderHeight = trueWidth / imageAspect;
-        renderWidth = trueWidth;
-    } else {
-        renderHeight = tof(sheight);
-        renderWidth = tof(sheight) * imageAspect;
-    }
-
-    r.DrawTexturePro(tex, r.Rectangle{ .x = 0, .y = 0, .width = @as(f32, @floatFromInt(tex.width)), .height = @as(f32, @floatFromInt(tex.height)) }, r.Rectangle{ .x = SIDEBAR_SIZE, .y = 0, .width = renderWidth, .height = renderHeight }, r.Vector2{
-        .x = 0,
-        .y = 0,
-    }, 0, r.WHITE);
-}
-
-pub fn calcImgSize(tex: r.Texture2D, swidth: i32, sheight: i32) r.Rectangle {
-    var trueWidth: f32 = tof(swidth) - SIDEBAR_SIZE;
-
-    var imageAspect = tof(tex.width) / tof(tex.height);
-    var screenAspect = trueWidth / tof(sheight);
-
-    var renderWidth: f32 = 0;
-    var renderHeight: f32 = 0;
-
-    if (imageAspect > screenAspect) {
-        renderHeight = trueWidth / imageAspect;
-        renderWidth = trueWidth;
-    } else {
-        renderHeight = tof(sheight);
-        renderWidth = tof(sheight) * imageAspect;
-    }
-
-    return r.Rectangle{ .x = SIDEBAR_SIZE, .y = 0, .width = renderWidth, .height = renderHeight };
-}
-
-pub fn transformScreenCoordsToImageSpace(mousePos: r.Vector2, imgRect: r.Rectangle, tex: r.Texture2D) r.Vector2 {
-    // Adjust the X coordinate by subtracting the sidebar size
-    var adjustedScreenX = mousePos.x - SIDEBAR_SIZE;
-
-    // Ensure that we do not transform coordinates that are within the sidebar area
-    if (adjustedScreenX < 0) {
-        adjustedScreenX = 0;
-    }
-
-    // Calculate the scale factors for width and height
-    var scaleX: f32 = imgRect.width / imgRect.width;
-    var scaleY: f32 = imgRect.height / imgRect.height;
-
-    // Apply the scale factors and adjust for the position of the image (imgRect.x and imgRect.y)
-    var imageX: f32 = adjustedScreenX / scaleX;
-    var imageY: f32 = mousePos.y / scaleY;
-
-    // Img relative, but at screen scale. Not good.
-    var mults = r.Vector2{ .x = imageX / imgRect.width, .y = imageY / imgRect.height };
-    return r.Vector2{ .x = tof(tex.width) * mults.x, .y = tof(tex.height) * mults.y };
-}
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
@@ -111,8 +38,8 @@ pub fn main() !void {
         if (walkcount > 99) {
             continue;
         }
-        std.debug.print("{s}", .{entry.path});
         var fullPath = try std.fmt.allocPrint(allocator, "{s}{s}", .{ "./uudet/", entry.path });
+        imgList.append(r.LoadImage(@as([*c]const u8, @ptrCast(fullPath)))) catch unreachable;
         texList.append(r.LoadTexture(@as([*c]const u8, @ptrCast(fullPath)))) catch unreachable;
         walkcount += 1;
         allocator.free(fullPath);
@@ -122,16 +49,9 @@ pub fn main() !void {
 
     while (!r.WindowShouldClose()) {
         var texture = texList.items[0];
-        var mp = r.GetMousePosition();
-        var imgMp = transformScreenCoordsToImageSpace(mp, calcImgSize(texture, screen_width, screen_height), texture);
-
-        std.debug.print("{d}:{d} \n", .{ imgMp.x, imgMp.y });
-
         if (doExport) {
+            exporter.exportImages(imgList.items[0], rectList, texture, screen_width, screen_height, allocator);
             doExport = false;
-            var img = r.LoadImageFromScreen();
-            r.ImageCrop(&img, calcImgSize(texture, screen_width, screen_height));
-            _ = r.ExportImage(img, "./export.png");
         }
         if (r.IsMouseButtonDown(0)) {
             if (rectStart == null) {
@@ -159,23 +79,23 @@ pub fn main() !void {
                 _ = rectList.orderedRemove(rectList.items.len - 1);
             }
         }
-        drawTexLetterboxed(texture, screen_width, screen_height);
+        i.drawTexLetterboxed(texture, screen_width, screen_height);
         if (rectStart != null) {
             var mouseP = r.GetMousePosition();
             var mouseDiff = r.Vector2Subtract(mouseP, rectStart.?);
-            r.DrawRectangle(toi(rectStart.?.x), toi(rectStart.?.y), toi(mouseDiff.x), toi(mouseDiff.y), r.RED);
+            r.DrawRectangle(i.toi(rectStart.?.x), i.toi(rectStart.?.y), i.toi(mouseDiff.x), i.toi(mouseDiff.y), r.RED);
         }
 
         for (rectList.items) |rect| {
-            r.DrawRectangle(toi(rect.x), toi(rect.y), toi(rect.width), toi(rect.height), r.BLUE);
+            r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), r.BLUE);
         }
     }
 
     // Free
-    for (texList) |tex| {
+    for (texList.items) |tex| {
         r.UnloadTexture(tex);
     }
-    for (imgList) |img| {
+    for (imgList.items) |img| {
         r.UnloadImage(img);
     }
 
