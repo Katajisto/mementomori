@@ -9,10 +9,13 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
     var screen_width: i32 = 1920;
     var screen_height: i32 = 1080;
-    // r.SetTraceLogLevel(r.LOG_ERROR);
-    r.InitWindow(screen_width, screen_height, "Memento mori");
+    r.SetTraceLogLevel(r.LOG_ERROR);
+    r.InitWindow(screen_width, screen_height, "Jennin Anki työkalu v0.5");
 
-    try utils.printIntro();
+    var conf = try utils.readConf(allocator);
+    defer conf.deinit();
+
+    std.debug.print("{s} - {s}", .{ conf.ankiMedia.items, conf.exportLoc.items });
 
     var cwd = fs.cwd();
     var uudet = try cwd.openIterableDir("uudet", .{});
@@ -20,12 +23,11 @@ pub fn main() !void {
     var walker = try uudet.walk(allocator);
     defer walker.deinit();
 
-    var texList = std.ArrayList(r.Texture2D).init(allocator);
-    var imgList = std.ArrayList(r.Image).init(allocator);
+    var curImage: ?r.Image = null;
+    var curTexture: ?r.Texture2D = null;
+
     var rectList = std.ArrayList(r.Rectangle).init(allocator);
     defer rectList.deinit();
-    defer texList.deinit();
-    defer imgList.deinit();
 
     r.SetTargetFPS(60);
     r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 25);
@@ -33,25 +35,21 @@ pub fn main() !void {
 
     var rectStart: ?r.Vector2 = null;
 
-    var walkcount: usize = 0;
-    while (try walker.next()) |entry| {
-        if (walkcount > 99) {
-            continue;
-        }
-        var fullPath = try std.fmt.allocPrint(allocator, "{s}{s}", .{ "./uudet/", entry.path });
-        imgList.append(r.LoadImage(@as([*c]const u8, @ptrCast(fullPath)))) catch unreachable;
-        texList.append(r.LoadTexture(@as([*c]const u8, @ptrCast(fullPath)))) catch unreachable;
-        walkcount += 1;
-        allocator.free(fullPath);
-    }
-
     var doExport = false;
+    var exportScreenFrames: i32 = 0;
+
+    var filename = [_]u8{0} ** 100;
 
     while (!r.WindowShouldClose()) {
-        var texture = texList.items[0];
-        if (doExport) {
-            exporter.exportImages(imgList.items[0], rectList, texture, screen_width, screen_height, allocator);
+        if (doExport and exportScreenFrames > 2) {
+            exporter.exportImages(curImage.?, rectList, curTexture.?, screen_width, screen_height, allocator, conf, @as([*:0]u8, @ptrCast(&filename)));
             doExport = false;
+            r.UnloadImage(curImage.?);
+            r.UnloadTexture(curTexture.?);
+            curImage = null;
+            curTexture = null;
+            exportScreenFrames = 0;
+            rectList.clearRetainingCapacity();
         }
         if (r.IsMouseButtonDown(0)) {
             if (rectStart == null) {
@@ -69,34 +67,62 @@ pub fn main() !void {
         }
         r.BeginDrawing();
         defer r.EndDrawing();
-        r.ClearBackground(r.WHITE);
-        _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
-        if (r.GuiButton(.{ .x = 10, .y = 60, .width = 380, .height = 40 }, "Vie pakka") == 1) {
-            doExport = true;
-        }
-        if (r.GuiButton(.{ .x = 10, .y = 120, .width = 380, .height = 40 }, "Poista viimeinen suorakulmio") == 1) {
-            if (rectList.items.len > 0) {
-                _ = rectList.orderedRemove(rectList.items.len - 1);
+        if (doExport) {
+            r.ClearBackground(r.YELLOW);
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 50);
+            _ = r.GuiLabel(.{ .x = 800, .y = 400, .height = 50, .width = 320 }, "Prosessoidaan...");
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 25);
+            exportScreenFrames += 1;
+        } else if (curImage != null and curTexture != null) {
+            r.ClearBackground(r.WHITE);
+            i.drawTexLetterboxed(curTexture.?, screen_width, screen_height);
+            if (rectStart != null) {
+                var mouseP = r.GetMousePosition();
+                var mouseDiff = r.Vector2Subtract(mouseP, rectStart.?);
+                r.DrawRectangle(i.toi(rectStart.?.x), i.toi(rectStart.?.y), i.toi(mouseDiff.x), i.toi(mouseDiff.y), r.RED);
             }
-        }
-        i.drawTexLetterboxed(texture, screen_width, screen_height);
-        if (rectStart != null) {
-            var mouseP = r.GetMousePosition();
-            var mouseDiff = r.Vector2Subtract(mouseP, rectStart.?);
-            r.DrawRectangle(i.toi(rectStart.?.x), i.toi(rectStart.?.y), i.toi(mouseDiff.x), i.toi(mouseDiff.y), r.RED);
-        }
 
-        for (rectList.items) |rect| {
-            r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), r.BLUE);
+            for (rectList.items) |rect| {
+                r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), r.BLUE);
+            }
+            r.DrawRectangle(0, 0, 400, 1080, r.Color{ .r = 230, .g = 230, .b = 230, .a = 255 });
+            _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
+            if (r.GuiButton(.{ .x = 10, .y = 1000, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
+                doExport = true;
+            }
+            if (r.GuiButton(.{ .x = 10, .y = 950, .width = 380, .height = 40 }, "Poista viimeinen suorakulmio") == 1) {
+                if (rectList.items.len > 0) {
+                    _ = rectList.orderedRemove(rectList.items.len - 1);
+                }
+            }
+
+            _ = r.GuiLabel(.{ .x = 10, .y = 120, .height = 30, .width = 380 }, "Tiedostonimi");
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_ALIGNMENT, r.TEXT_ALIGN_LEFT);
+            _ = r.GuiTextBox(.{ .x = 10, .y = 170, .width = 380, .height = 40 }, @as([*c]u8, @ptrCast(&filename)), 30, true);
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_ALIGNMENT, r.TEXT_ALIGN_CENTER);
+            _ = r.GuiLabel(.{ .x = 10, .y = 1050, .height = 30, .width = 380 }, "Katajisto 2023");
+        } else {
+            r.ClearBackground(r.RAYWHITE);
+            if (r.IsFileDropped()) {
+                var droppedFiles = r.LoadDroppedFiles();
+                if (droppedFiles.count > 0) {
+                    curTexture = r.LoadTexture(droppedFiles.paths[0]);
+                    curImage = r.LoadImage(droppedFiles.paths[0]);
+                }
+                r.UnloadDroppedFiles(droppedFiles);
+            }
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 50);
+            _ = r.GuiLabel(.{ .x = 0, .y = 400, .height = 50, .width = 1920 }, "Raahaa tiedosto ikkunaan...");
+            r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 25);
         }
     }
 
-    // Free
-    for (texList.items) |tex| {
-        r.UnloadTexture(tex);
+    if (curTexture != null) {
+        r.UnloadTexture(curTexture.?);
     }
-    for (imgList.items) |img| {
-        r.UnloadImage(img);
+
+    if (curImage != null) {
+        r.UnloadImage(curImage.?);
     }
 
     defer r.CloseWindow(); // Close window and OpenGL context
