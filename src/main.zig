@@ -9,19 +9,12 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
     var screen_width: i32 = 1920;
     var screen_height: i32 = 1080;
-    r.SetTraceLogLevel(r.LOG_ERROR);
+    // r.SetTraceLogLevel(r.LOG_ERROR);
+    // r.SetConfigFlags(r.FLAG_WINDOW_RESIZABLE);
     r.InitWindow(screen_width, screen_height, "Jennin Anki työkalu v0.5");
 
     var conf = try utils.readConf(allocator);
     defer conf.deinit();
-
-    std.debug.print("{s} - {s}", .{ conf.ankiMedia.items, conf.exportLoc.items });
-
-    var cwd = fs.cwd();
-    var uudet = try cwd.openIterableDir("uudet", .{});
-
-    var walker = try uudet.walk(allocator);
-    defer walker.deinit();
 
     var curImage: ?r.Image = null;
     var curTexture: ?r.Texture2D = null;

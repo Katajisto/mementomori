@@ -36,10 +36,10 @@ pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), tex: r
             }
         }
         var ts = std.time.timestamp();
-        var fullPath = std.fmt.allocPrint(alloc, "{s}{d}-{d}.png", .{ conf.ankiMedia.items, ts, i }) catch unreachable;
-        var fullPathSol = std.fmt.allocPrint(alloc, "{s}{d}-{d}-solution.png", .{ conf.ankiMedia.items, ts, i }) catch unreachable;
-        var path = std.fmt.allocPrint(alloc, "{d}-{d}.png", .{ ts, i }) catch unreachable;
-        var pathSol = std.fmt.allocPrint(alloc, "{d}-{d}-solution.png", .{ ts, i }) catch unreachable;
+        var fullPath = std.fmt.allocPrint(alloc, "{s}{s}-{d}-{d}.jpg", .{ conf.ankiMedia.items, filename, ts, i }) catch unreachable;
+        var fullPathSol = std.fmt.allocPrint(alloc, "{s}{s}-{d}-{d}-solution.jpg", .{ conf.ankiMedia.items, filename, ts, i }) catch unreachable;
+        var path = std.fmt.allocPrint(alloc, "{s}-{d}-{d}.jpg", .{ filename, ts, i }) catch unreachable;
+        var pathSol = std.fmt.allocPrint(alloc, "{s}-{d}-{d}-solution.jpg", .{ filename, ts, i }) catch unreachable;
         _ = r.ExportImage(imgCpy, @as([*c]const u8, @ptrCast(fullPath)));
         _ = r.ExportImage(imgCpySolution, @as([*c]const u8, @ptrCast(fullPathSol)));
         r.UnloadImage(imgCpy);
@@ -58,4 +58,5 @@ pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), tex: r
     var ankifile = std.fs.cwd().createFile(csvPath, .{ .read = true }) catch unreachable;
     _ = ankifile.write(ankicontent.items) catch unreachable;
     ankifile.close();
+    std.debug.print("DONE WITH EXPORT", .{});
 }
