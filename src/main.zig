@@ -50,6 +50,7 @@ pub fn main() !void {
             curTexture = null;
             exportScreenFrames = 0;
             rectList.clearRetainingCapacity();
+            filename = [_]u8{0} ** 100;
         }
         if (r.IsMouseButtonDown(0)) {
             if (rectStart == null) {
@@ -85,7 +86,7 @@ pub fn main() !void {
             for (rectList.items) |rect| {
                 r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), r.BLUE);
             }
-            r.DrawRectangle(0, 0, 400, 1080, r.Color{ .r = 230, .g = 230, .b = 230, .a = 255 });
+            r.DrawRectangle(0, 0, 400, 1080, r.Color{ .r = 190, .g = 190, .b = 190, .a = 255 });
             _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
             if (r.GuiButton(.{ .x = 10, .y = 1000, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
                 doExport = true;
