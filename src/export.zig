@@ -11,7 +11,7 @@ pub fn toi(x: f32) i32 {
     return @as(i32, @intFromFloat(x));
 }
 
-pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), tex: r.Texture2D, sw: i32, sh: i32, alloc: std.mem.Allocator, conf: utils.conf, filename: [*:0]u8) void {
+pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), alloc: std.mem.Allocator, conf: utils.conf, filename: [*:0]u8) void {
     std.debug.print("{s}", .{filename});
     var ankicontent = std.ArrayList(u8).init(alloc);
     defer ankicontent.deinit();
@@ -22,18 +22,12 @@ pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), tex: r
         for (0..rectList.items.len) |j| {
             if (i == j) {
                 var curRect = rectList.items[j];
-                var curRectCorrectedStart = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x, .y = curRect.y }, img.calcImgSize(tex, sw, sh), tex);
-                var curRectCorrectedEnd = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x + curRect.width, .y = curRect.y + curRect.height }, img.calcImgSize(tex, sw, sh), tex);
-                var correctedSize = r.Vector2Subtract(curRectCorrectedEnd, curRectCorrectedStart);
-                r.ImageDrawRectangle(&imgCpy, toi(curRectCorrectedStart.x), toi(curRectCorrectedStart.y), toi(correctedSize.x), toi(correctedSize.y), r.RED);
-                r.ImageDrawRectangleRecBlend(&imgCpySolution, r.Rectangle{ .x = (curRectCorrectedStart.x), .y = (curRectCorrectedStart.y), .width = (correctedSize.x), .height = (correctedSize.y) }, r.Color{ .r = 255, .g = 0, .b = 0, .a = 50 });
+                r.ImageDrawRectangle(&imgCpy, toi(curRect.x), toi(curRect.y), toi(curRect.width), toi(curRect.height), r.RED);
+                r.ImageDrawRectangleRecBlend(&imgCpySolution, r.Rectangle{ .x = (curRect.x), .y = (curRect.y), .width = (curRect.width), .height = (curRect.height) }, r.Color{ .r = 255, .g = 0, .b = 0, .a = 50 });
             } else {
                 var curRect = rectList.items[j];
-                var curRectCorrectedStart = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x, .y = curRect.y }, img.calcImgSize(tex, sw, sh), tex);
-                var curRectCorrectedEnd = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x + curRect.width, .y = curRect.y + curRect.height }, img.calcImgSize(tex, sw, sh), tex);
-                var correctedSize = r.Vector2Subtract(curRectCorrectedEnd, curRectCorrectedStart);
-                r.ImageDrawRectangle(&imgCpy, toi(curRectCorrectedStart.x), toi(curRectCorrectedStart.y), toi(correctedSize.x), toi(correctedSize.y), r.BLUE);
-                r.ImageDrawRectangle(&imgCpySolution, toi(curRectCorrectedStart.x), toi(curRectCorrectedStart.y), toi(correctedSize.x), toi(correctedSize.y), r.BLUE);
+                r.ImageDrawRectangle(&imgCpy, toi(curRect.x), toi(curRect.y), toi(curRect.width), toi(curRect.height), r.BLUE);
+                r.ImageDrawRectangle(&imgCpySolution, toi(curRect.x), toi(curRect.y), toi(curRect.width), toi(curRect.height), r.BLUE);
             }
         }
         var ts = std.time.timestamp();

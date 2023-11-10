@@ -7,11 +7,11 @@ const fs = std.fs;
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    var screen_width: i32 = 1920;
-    var screen_height: i32 = 1080;
+    var screen_width: i32 = 1080;
+    var screen_height: i32 = 720;
     // r.SetTraceLogLevel(r.LOG_ERROR);
-    // r.SetConfigFlags(r.FLAG_WINDOW_RESIZABLE);
-    r.InitWindow(screen_width, screen_height, "Jennin Anki työkalu v0.5");
+    r.SetConfigFlags(r.FLAG_WINDOW_RESIZABLE);
+    r.InitWindow(screen_width, screen_height, "Jennin Anki työkalu v0.9");
 
     var conf = try utils.readConf(allocator);
     defer conf.deinit();
@@ -36,8 +36,11 @@ pub fn main() !void {
     var filename = [_]u8{0} ** 100;
 
     while (!r.WindowShouldClose()) {
+        var window_h = r.GetScreenHeight();
+        var window_w = r.GetScreenWidth();
+        std.debug.print("{d} {d}\n", .{ window_h, window_w });
         if (doExport and exportScreenFrames > 2) {
-            exporter.exportImages(curImage.?, rectList, curTexture.?, screen_width, screen_height, allocator, conf, @as([*:0]u8, @ptrCast(&filename)));
+            exporter.exportImages(curImage.?, rectList, allocator, conf, @as([*:0]u8, @ptrCast(&filename)));
             doExport = false;
             r.UnloadImage(curImage.?);
             r.UnloadTexture(curTexture.?);
@@ -66,7 +69,10 @@ pub fn main() !void {
                 }
 
                 if (((mouseDiff.x > 0 and mouseDiff.y > 0) or (mouseDiff.x < 0 and mouseDiff.y < 0)) and ok) {
-                    rectList.append(.{ .x = rectStart.?.x, .y = rectStart.?.y, .width = mouseDiff.x, .height = mouseDiff.y }) catch unreachable;
+                    var curRectCorrectedStart = i.transformScreenCoordsToImageSpace(.{ .x = rectStart.?.x, .y = rectStart.?.y }, i.calcImgSize(curTexture.?, window_w, window_w), curTexture.?);
+                    var curRectCorrectedEnd = i.transformScreenCoordsToImageSpace(.{ .x = rectStart.?.x + mouseDiff.x, .y = rectStart.?.y + mouseDiff.y }, i.calcImgSize(curTexture.?, window_w, window_w), curTexture.?);
+                    var correctedSize = r.Vector2Subtract(curRectCorrectedEnd, curRectCorrectedStart);
+                    rectList.append(.{ .x = curRectCorrectedStart.x, .y = curRectCorrectedStart.y, .width = correctedSize.x, .height = correctedSize.y }) catch unreachable;
                 }
                 if (!ok) {
                     std.debug.print("Rectangle was not ok", .{});
@@ -84,7 +90,7 @@ pub fn main() !void {
             exportScreenFrames += 1;
         } else if (curImage != null and curTexture != null) {
             r.ClearBackground(r.WHITE);
-            i.drawTexLetterboxed(curTexture.?, screen_width, screen_height);
+            i.drawTexLetterboxed(curTexture.?, window_w, window_h);
             if (rectStart != null) {
                 var mouseP = r.GetMousePosition();
                 var mouseDiff = r.Vector2Subtract(mouseP, rectStart.?);
@@ -96,23 +102,29 @@ pub fn main() !void {
                 if (transparencyMode) {
                     rectColor = r.Color{ .r = 0, .g = 0, .b = 255, .a = 60 };
                 }
-                r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), rectColor);
+                var imgSize = i.calcImgSize(curTexture.?, window_w, window_h);
+                var xOffset = (rect.x / i.tof(curTexture.?.width)) * imgSize.width + 400;
+                var yOffset = (rect.y / i.tof(curTexture.?.height)) * imgSize.height;
+                var xCorrected = (rect.width / i.tof(curTexture.?.width)) * imgSize.width;
+                var yCorrected = (rect.height / i.tof(curTexture.?.height)) * imgSize.height;
+
+                r.DrawRectangle(i.toi(xOffset), i.toi(yOffset), i.toi(xCorrected), i.toi(yCorrected), rectColor);
             }
-            r.DrawRectangle(0, 0, 400, 1080, r.Color{ .r = 190, .g = 190, .b = 190, .a = 255 });
+            r.DrawRectangle(0, 0, 400, window_h, r.Color{ .r = 190, .g = 190, .b = 190, .a = 255 });
             _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
-            if (r.GuiButton(.{ .x = 10, .y = 1000, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
+            if (r.GuiButton(.{ .x = 10, .y = i.tof(window_h) - 90, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
                 doExport = true;
             }
             if (transparencyMode) {
-                if (r.GuiButton(.{ .x = 10, .y = 900, .width = 380, .height = 40 }, "Tee laatikoista peittäviä") == 1) {
+                if (r.GuiButton(.{ .x = 10, .y = i.tof(window_h) - 200, .width = 380, .height = 40 }, "Tee laatikoista peittäviä") == 1) {
                     transparencyMode = false;
                 }
             } else {
-                if (r.GuiButton(.{ .x = 10, .y = 900, .width = 380, .height = 40 }, "Tee laatikoista läpinäkyviä") == 1) {
+                if (r.GuiButton(.{ .x = 10, .y = i.tof(window_h) - 200, .width = 380, .height = 40 }, "Tee laatikoista läpinäkyviä") == 1) {
                     transparencyMode = true;
                 }
             }
-            if (r.GuiButton(.{ .x = 10, .y = 950, .width = 380, .height = 40 }, "Poista viimeinen suorakulmio") == 1) {
+            if (r.GuiButton(.{ .x = 10, .y = i.tof(window_h) - 150, .width = 380, .height = 40 }, "Poista viimeinen suorakulmio") == 1) {
                 if (rectList.items.len > 0) {
                     _ = rectList.orderedRemove(rectList.items.len - 1);
                 }
@@ -122,7 +134,7 @@ pub fn main() !void {
             r.GuiSetStyle(r.DEFAULT, r.TEXT_ALIGNMENT, r.TEXT_ALIGN_LEFT);
             _ = r.GuiTextBox(.{ .x = 10, .y = 170, .width = 380, .height = 40 }, @as([*c]u8, @ptrCast(&filename)), 30, true);
             r.GuiSetStyle(r.DEFAULT, r.TEXT_ALIGNMENT, r.TEXT_ALIGN_CENTER);
-            _ = r.GuiLabel(.{ .x = 10, .y = 1050, .height = 30, .width = 380 }, "Katajisto 2023");
+            _ = r.GuiLabel(.{ .x = 10, .y = i.tof(window_h) - 32, .height = 30, .width = 380 }, "Katajisto 2023");
         } else {
             r.ClearBackground(r.RAYWHITE);
             if (r.IsFileDropped()) {
@@ -134,7 +146,7 @@ pub fn main() !void {
                 r.UnloadDroppedFiles(droppedFiles);
             }
             r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 50);
-            _ = r.GuiLabel(.{ .x = 0, .y = 400, .height = 50, .width = 1920 }, "Raahaa tiedosto ikkunaan...");
+            _ = r.GuiLabel(.{ .x = 0, .y = (i.tof(window_h) / 2) - 25, .height = 50, .width = i.tof(window_w) }, "Raahaa tiedosto ikkunaan...");
             r.GuiSetStyle(r.DEFAULT, r.TEXT_SIZE, 25);
         }
     }
