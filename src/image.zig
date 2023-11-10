@@ -1,6 +1,6 @@
 const r = @import("ray.zig").r;
 
-const SIDEBAR_SIZE = 400;
+pub const SIDEBAR_SIZE = 400;
 
 pub fn tof(x: i32) f32 {
     return @as(f32, @floatFromInt(x));

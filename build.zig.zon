@@ -6,7 +6,7 @@
     .dependencies = .{
         .raylib = .{
             .url = "https://github.com/Katajisto/raylib/archive/refs/heads/master.tar.gz",
-            .hash = "1220781267483468a7173ea3eb5b43f4e64e792ca754d76f4578f934ca964f3385df",
+            .hash = "12200ce2a08a8fa884f96a42dce44feb80da7fb1a12167196ddfefcb4b42246cb0ef",            
         },
         .raygui = .{
             .url = "https://github.com/raysan5/raygui/archive/499e8bf7b1d9b0a92af8f685e646bc61f13c6dff.tar.gz",

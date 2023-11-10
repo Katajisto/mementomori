@@ -31,6 +31,8 @@ pub fn main() !void {
     var doExport = false;
     var exportScreenFrames: i32 = 0;
 
+    var transparencyMode = false;
+
     var filename = [_]u8{0} ** 100;
 
     while (!r.WindowShouldClose()) {
@@ -53,8 +55,21 @@ pub fn main() !void {
             if (rectStart != null) {
                 var mouseP = r.GetMousePosition();
                 var mouseDiff = r.Vector2Subtract(mouseP, rectStart.?);
-                if ((mouseDiff.x > 0 and mouseDiff.y > 0) or (mouseDiff.x < 0 and mouseDiff.y < 0)) {
+                var ok = true;
+                // Do some checks:
+                if (rectStart.?.x <= i.SIDEBAR_SIZE) {
+                    ok = false;
+                }
+
+                if ((@abs(mouseDiff.x) * @abs(mouseDiff.y)) < 20) {
+                    ok = false;
+                }
+
+                if (((mouseDiff.x > 0 and mouseDiff.y > 0) or (mouseDiff.x < 0 and mouseDiff.y < 0)) and ok) {
                     rectList.append(.{ .x = rectStart.?.x, .y = rectStart.?.y, .width = mouseDiff.x, .height = mouseDiff.y }) catch unreachable;
+                }
+                if (!ok) {
+                    std.debug.print("Rectangle was not ok", .{});
                 }
                 rectStart = null;
             }
@@ -77,12 +92,25 @@ pub fn main() !void {
             }
 
             for (rectList.items) |rect| {
-                r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), r.BLUE);
+                var rectColor = r.BLUE;
+                if (transparencyMode) {
+                    rectColor = r.Color{ .r = 0, .g = 0, .b = 255, .a = 60 };
+                }
+                r.DrawRectangle(i.toi(rect.x), i.toi(rect.y), i.toi(rect.width), i.toi(rect.height), rectColor);
             }
             r.DrawRectangle(0, 0, 400, 1080, r.Color{ .r = 190, .g = 190, .b = 190, .a = 255 });
             _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
             if (r.GuiButton(.{ .x = 10, .y = 1000, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
                 doExport = true;
+            }
+            if (transparencyMode) {
+                if (r.GuiButton(.{ .x = 10, .y = 900, .width = 380, .height = 40 }, "Tee laatikoista peittäviä") == 1) {
+                    transparencyMode = false;
+                }
+            } else {
+                if (r.GuiButton(.{ .x = 10, .y = 900, .width = 380, .height = 40 }, "Tee laatikoista läpinäkyviä") == 1) {
+                    transparencyMode = true;
+                }
             }
             if (r.GuiButton(.{ .x = 10, .y = 950, .width = 380, .height = 40 }, "Poista viimeinen suorakulmio") == 1) {
                 if (rectList.items.len > 0) {

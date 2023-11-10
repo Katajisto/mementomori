@@ -26,6 +26,7 @@ pub fn exportImages(image: r.Image, rectList: std.ArrayList(r.Rectangle), tex: r
                 var curRectCorrectedEnd = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x + curRect.width, .y = curRect.y + curRect.height }, img.calcImgSize(tex, sw, sh), tex);
                 var correctedSize = r.Vector2Subtract(curRectCorrectedEnd, curRectCorrectedStart);
                 r.ImageDrawRectangle(&imgCpy, toi(curRectCorrectedStart.x), toi(curRectCorrectedStart.y), toi(correctedSize.x), toi(correctedSize.y), r.RED);
+                r.ImageDrawRectangleRecBlend(&imgCpySolution, r.Rectangle{ .x = (curRectCorrectedStart.x), .y = (curRectCorrectedStart.y), .width = (correctedSize.x), .height = (correctedSize.y) }, r.Color{ .r = 255, .g = 0, .b = 0, .a = 50 });
             } else {
                 var curRect = rectList.items[j];
                 var curRectCorrectedStart = img.transformScreenCoordsToImageSpace(.{ .x = curRect.x, .y = curRect.y }, img.calcImgSize(tex, sw, sh), tex);
