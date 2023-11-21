@@ -11,7 +11,7 @@ pub fn main() !void {
     var screen_height: i32 = 720;
     // r.SetTraceLogLevel(r.LOG_ERROR);
     r.SetConfigFlags(r.FLAG_WINDOW_RESIZABLE);
-    r.InitWindow(screen_width, screen_height, "Jennin Anki työkalu v0.9");
+    r.InitWindow(screen_width, screen_height, "Anki työkalu v0.9");
 
     var conf = try utils.readConf(allocator);
     defer conf.deinit();
@@ -111,7 +111,7 @@ pub fn main() !void {
                 r.DrawRectangle(i.toi(xOffset), i.toi(yOffset), i.toi(xCorrected), i.toi(yCorrected), rectColor);
             }
             r.DrawRectangle(0, 0, 400, window_h, r.Color{ .r = 190, .g = 190, .b = 190, .a = 255 });
-            _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Jennin Anki työkalu");
+            _ = r.GuiLabel(.{ .x = 10, .y = 10, .width = 380, .height = 40 }, "Anki työkalu");
             if (r.GuiButton(.{ .x = 10, .y = i.tof(window_h) - 90, .width = 380, .height = 40 }, "Vie pakka") == 1 and filename[0] != 0) {
                 doExport = true;
             }
